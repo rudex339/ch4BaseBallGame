@@ -11,9 +11,11 @@
 #include "BBPlayerState.h"
 #include "Net/UnrealNetwork.h"
 
-ABBPlayerController::ABBPlayerController()
+ABBPlayerController::ABBPlayerController():
+	RemainTime(30.f)
 {
 	bReplicates = true;
+	PrimaryActorTick.bCanEverTick = true;
 }
 
 void ABBPlayerController::BeginPlay()
@@ -46,6 +48,13 @@ void ABBPlayerController::BeginPlay()
 			NotificationTextWidgetInstance->AddToViewport();
 		}
 	}
+}
+
+void ABBPlayerController::Tick(float DeltaSecond)
+{
+	RemainTime -= DeltaSecond;
+	if (RemainTime < 0.f)
+		RemainTime = 0.f;
 }
 
 void ABBPlayerController::SetChatMessageString(const FString& InChatMessageString)
@@ -95,4 +104,5 @@ void ABBPlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimePrope
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, NotificationText);
+	DOREPLIFETIME(ThisClass, RemainTime);
 }

@@ -15,6 +15,7 @@ class CH4BASEBALLGAME_API ABBGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
 public:
+	ABBGameModeBase();
 	virtual void OnPostLogin(AController* NewPlayer) override;
 	virtual void BeginPlay() override;
 
@@ -27,11 +28,14 @@ public:
 	void ResetGame();
 	void JudgeGame(ABBPlayerController* InChattingPlayerController, int InStrikeCount);
 
-	UFUNCTION()
-	float GetTimer() const { return Timer; }
+	void OnTimerTick();
+
+
 protected:
 	FString SecretNumberString;
 	TArray<TObjectPtr<ABBPlayerController>> AllPlayerControllers;
-	float Timer = 0.0f;
+
+	FTimerHandle TimerHandle;
+	int CurrentTurnPlayerIndex;
 
 };

@@ -29,6 +29,6 @@ public:
 	UPROPERTY(Replicated)
 	int32 MaxGuessCount;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(Replicated,BlueprintReadOnly)
 	bool turn;
 };

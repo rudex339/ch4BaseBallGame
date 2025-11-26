@@ -7,6 +7,11 @@
 #include "EngineUtils.h"
 #include "Player/BBPlayerState.h"
 
+ABBGameModeBase::ABBGameModeBase():
+	CurrentTurnPlayerIndex(0)
+{	
+}
+
 void ABBGameModeBase::OnPostLogin(AController* NewPlayer)
 {
 	Super::OnPostLogin(NewPlayer);
@@ -122,17 +127,21 @@ void ABBGameModeBase::BeginPlay()
 {
 	Super::BeginPlay();
 	SecretNumberString = GenerateSecretNumber();
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &ABBGameModeBase::OnTimerTick, 30.f, true);
 }
 
 void ABBGameModeBase::PrintChatMessageString(ABBPlayerController* InChattingPlayerController, const FString& InChatMessageString)
 {
 	int Index = InChatMessageString.Len() - 3;
-	FString GuessNumberString = InChatMessageString.RightChop(Index);
+	FString GuessNumberString = InChatMessageString.RightChop(Index);	
+	ABBPlayerState* BBPS = InChattingPlayerController
+		->GetPlayerState<ABBPlayerState>();
+	if (!IsValid(BBPS))return;
 
-	if (IsGuessNumberString(GuessNumberString) == true)
+	if (IsGuessNumberString(GuessNumberString) == true && BBPS->turn)
 	{
-		FString JudgeResultString = JudgeResult(SecretNumberString, GuessNumberString);
 		IncreaseGuessCount(InChattingPlayerController);
+		FString JudgeResultString = JudgeResult(SecretNumberString, GuessNumberString);		
 		for (TActorIterator<ABBPlayerController> It(GetWorld()); It; ++It)//월드의 모든 컨트롤러를 순회
 		{
 			ABBPlayerController* BBPlayerController = *It;
@@ -144,6 +153,9 @@ void ABBGameModeBase::PrintChatMessageString(ABBPlayerController* InChattingPlay
 				JudgeGame(InChattingPlayerController, StrikeCount);
 			}
 		}
+		GetWorldTimerManager().ClearTimer(TimerHandle);
+		OnTimerTick();
+		GetWorldTimerManager().SetTimer(TimerHandle, this, &ABBGameModeBase::OnTimerTick, 30.f, true);
 	}
 	else
 	{
@@ -169,6 +181,11 @@ void ABBGameModeBase::IncreaseGuessCount(ABBPlayerController* InChattingPlayerCo
 
 void ABBGameModeBase::ResetGame()
 {
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &ABBGameModeBase::OnTimerTick, 30.f, true);
+
+	CurrentTurnPlayerIndex = 0;
+
 	SecretNumberString = GenerateSecretNumber();
 
 	for (const auto& BBPlayerController : AllPlayerControllers)
@@ -179,6 +196,19 @@ void ABBGameModeBase::ResetGame()
 			BBPS->CurrentGuessCount = 0;
 		}
 	}
+
+	for (const auto& BBPlayerController : AllPlayerControllers)
+	{
+		BBPlayerController->RemainTime = 30.f;
+	}
+
+	ABBPlayerState* BBPS = AllPlayerControllers[CurrentTurnPlayerIndex]
+		->GetPlayerState<ABBPlayerState>();
+	if (IsValid(BBPS) == true)
+	{
+		BBPS->turn = false;
+	}
+
 }
 
 void ABBGameModeBase::JudgeGame(ABBPlayerController* InChattingPlayerController, int InStrikeCount)
@@ -212,15 +242,42 @@ void ABBGameModeBase::JudgeGame(ABBPlayerController* InChattingPlayerController,
 				}
 			}
 		}
-
 		if (true == bIsDraw)
 		{
 			for (const auto& BBPlayerController : AllPlayerControllers)
 			{
 				BBPlayerController->NotificationText = FText::FromString(TEXT("Draw..."));
-
-				ResetGame();
 			}
+			ResetGame();
 		}
 	}
+}
+
+void ABBGameModeBase::OnTimerTick() {
+	//CurrentTurnPlayerIndex 위치 의 turn false
+	for (const auto& BBPlayerController : AllPlayerControllers)
+	{
+		BBPlayerController->RemainTime = 30.f;
+	}
+
+	ABBPlayerState* BBPS = AllPlayerControllers[CurrentTurnPlayerIndex]
+		->GetPlayerState<ABBPlayerState>();
+	if (IsValid(BBPS) == true)
+	{
+		BBPS->turn = false;
+	}
+
+	CurrentTurnPlayerIndex++;
+	CurrentTurnPlayerIndex %= AllPlayerControllers.Num();
+
+	//CurrentTurnPlayerIndex 위치 의 turn true
+	AllPlayerControllers[CurrentTurnPlayerIndex]
+		->ClientRPCPrintChatMessageString(TEXT("your turn"));
+	BBPS = AllPlayerControllers[CurrentTurnPlayerIndex]
+		->GetPlayerState<ABBPlayerState>();
+	if (IsValid(BBPS) == true)
+	{
+		BBPS->turn = true;
+	}
+
 }
